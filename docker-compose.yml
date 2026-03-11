@@ -18,6 +18,8 @@ services:
       - LOG_LEVEL=info
       # 日志目录（debug模式需要，info模式可省略）
       # - LOG_DIR=/app/logs
+      # 或 America/New_York, Europe/London 等
+      # - TZ=Asia/Shanghai
     restart: unless-stopped
     # 使用host网络可以访问本机8005
     # network_mode: host

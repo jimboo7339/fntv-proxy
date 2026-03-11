@@ -14,8 +14,13 @@ FROM alpine:latest
 
 WORKDIR /app
 
-# 安装 ca-certificates
-RUN apk --no-cache add ca-certificates
+# 安装 ca-certificates 和 tzdata（时区数据）
+RUN apk --no-cache add ca-certificates tzdata
+
+# 设置时区为 Asia/Shanghai（东八区）
+ENV TZ=Asia/Shanghai
+RUN cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
+    echo "Asia/Shanghai" > /etc/timezone
 
 # 复制二进制文件
 COPY --from=builder /app/fntv-proxy /app/fntv-proxy
