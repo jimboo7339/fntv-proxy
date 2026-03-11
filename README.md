@@ -104,3 +104,7 @@ volumes:
 1. **PlaybackInfo 拦截**: 缓存所有 .strm 的 MediaSource
 2. **Stream 拦截**: 根据 MediaSourceId 查找缓存
 3. **重定向**: 读取 .strm 文件，返回 302 到真实 URL
+
+## 声明
+1.本项目仅针对 **夸克网盘** 在 **openlist**的**夸克TV驱动**挂载下，实现302
+2.经测试**CapyPlayer**下播放器正常播放
