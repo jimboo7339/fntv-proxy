@@ -64,6 +64,11 @@ func parseLevel(level string) Level {
 	}
 }
 
+// SetLevel 设置日志级别
+func (l *Logger) SetLevel(level string) {
+	l.level = parseLevel(level)
+}
+
 // Debug 调试日志（debug级别才输出到文件）
 func (l *Logger) Debug(format string, v ...interface{}) {
 	if l.level <= DebugLevel {

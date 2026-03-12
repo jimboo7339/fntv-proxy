@@ -2,7 +2,9 @@ package proxy
 
 import (
 	"bytes"
+	"context"
 	"fntv-proxy/internal/cache"
+	"fntv-proxy/internal/config"
 	"fntv-proxy/internal/handler"
 	"fntv-proxy/internal/logger"
 	"io"
@@ -14,28 +16,28 @@ import (
 
 // Server 代理服务器
 type Server struct {
-	listenAddr      string
-	targetURL       *url.URL
+	config          *config.Config
 	logger          *logger.Logger
 	cache           *cache.Cache
 	playbackHandler *handler.PlaybackHandler
 	streamHandler   *handler.StreamHandler
 	proxy           *httputil.ReverseProxy
+	httpServer      *http.Server
 }
 
 // NewServer 创建代理服务器
-func NewServer(listenAddr, targetAddr, logLevel, logDir string, cacheTTL time.Duration) (*Server, error) {
+func NewServer(cfg *config.Config) (*Server, error) {
 	// 创建日志
-	log := logger.New(logLevel, logDir)
+	log := logger.New(cfg.GetLogLevel(), cfg.LogDir)
 
 	// 解析目标地址
-	targetURL, err := url.Parse(targetAddr)
+	targetURL, err := url.Parse(cfg.GetTargetAddr())
 	if err != nil {
 		return nil, err
 	}
 
-	// 创建缓存（使用指定的TTL）
-	c := cache.NewWithTTL(cacheTTL)
+	// 创建缓存（使用配置中的TTL）
+	c := cache.NewWithTTL(cfg.GetCacheTTL())
 
 	// 创建处理器
 	ph := handler.NewPlaybackHandler(c, log)
@@ -45,8 +47,7 @@ func NewServer(listenAddr, targetAddr, logLevel, logDir string, cacheTTL time.Du
 	proxy := httputil.NewSingleHostReverseProxy(targetURL)
 
 	return &Server{
-		listenAddr:      listenAddr,
-		targetURL:       targetURL,
+		config:          cfg,
 		logger:          log,
 		cache:           c,
 		playbackHandler: ph,
@@ -61,19 +62,36 @@ func (s *Server) Start() error {
 	originalDirector := s.proxy.Director
 	s.proxy.Director = func(req *http.Request) {
 		originalDirector(req)
-		req.Host = s.targetURL.Host
+		req.Host = s.config.GetTargetAddr()
 	}
 
 	// 设置ModifyResponse
 	s.proxy.ModifyResponse = s.handleResponse
 
 	// 创建HTTP服务器
-	server := &http.Server{
-		Addr:    s.listenAddr,
+	s.httpServer = &http.Server{
+		Addr:    s.config.GetListenAddr(),
 		Handler: s.loggingMiddleware(s.proxy),
 	}
 
-	return server.ListenAndServe()
+	return s.httpServer.ListenAndServe()
+}
+
+// Stop 停止服务器
+func (s *Server) Stop() error {
+	if s.httpServer != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		return s.httpServer.Shutdown(ctx)
+	}
+	return nil
+}
+
+// Reload 重新加载配置
+func (s *Server) Reload() {
+	// 更新日志级别
+	s.logger.SetLevel(s.config.GetLogLevel())
+	s.logger.Info("配置已重载，新日志级别: %s", s.config.GetLogLevel())
 }
 
 // handleResponse 处理响应

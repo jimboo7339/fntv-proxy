@@ -25,6 +25,9 @@ RUN cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
 # 复制二进制文件
 COPY --from=builder /app/fntv-proxy /app/fntv-proxy
 
+# 复制默认配置文件
+COPY --from=builder /app/config.yaml /app/config.yaml
+
 # 暴露端口
 EXPOSE 28005
 
