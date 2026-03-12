@@ -120,8 +120,11 @@ func (s *Server) handleResponse(resp *http.Response) error {
 
 // isPlaybackInfoRequest 检查是否是PlaybackInfo
 func (s *Server) isPlaybackInfoRequest(req *http.Request) bool {
-	return req.Method == "POST" &&
-		len(req.URL.Path) > 0 &&
+	// 支持 GET 和 POST 请求
+	if req.Method != "POST" && req.Method != "GET" {
+		return false
+	}
+	return len(req.URL.Path) > 0 &&
 		contains(req.URL.Path, "/PlaybackInfo")
 }
 
