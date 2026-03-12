@@ -26,9 +26,9 @@ type Cache struct {
 	stopCleaner chan struct{}
 }
 
-// New 创建缓存，默认5分钟过期
+// New 创建缓存，默认1小时过期
 func New() *Cache {
-	return NewWithTTL(5 * time.Minute)
+	return NewWithTTL(1 * time.Hour)
 }
 
 // NewWithTTL 创建指定过期时间的缓存

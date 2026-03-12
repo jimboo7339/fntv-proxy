@@ -14,6 +14,8 @@ services:
       - TARGET_ADDR=http://127.0.0.1:8005
       # 日志级别: debug/info/warn/error
       - LOG_LEVEL=info
+      # strm缓存过期时间 默认1小时
+      - CACHE_TL=60
       # 日志目录（debug模式需要，info模式可省略）
       # - LOG_DIR=/app/logs
       # 或 America/New_York, Europe/London 等

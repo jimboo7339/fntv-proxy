@@ -9,21 +9,22 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"time"
 )
 
 // Server 代理服务器
 type Server struct {
-	listenAddr string
-	targetURL  *url.URL
-	logger     *logger.Logger
-	cache      *cache.Cache
+	listenAddr      string
+	targetURL       *url.URL
+	logger          *logger.Logger
+	cache           *cache.Cache
 	playbackHandler *handler.PlaybackHandler
-	streamHandler *handler.StreamHandler
-	proxy      *httputil.ReverseProxy
+	streamHandler   *handler.StreamHandler
+	proxy           *httputil.ReverseProxy
 }
 
 // NewServer 创建代理服务器
-func NewServer(listenAddr, targetAddr, logLevel, logDir string) (*Server, error) {
+func NewServer(listenAddr, targetAddr, logLevel, logDir string, cacheTTL time.Duration) (*Server, error) {
 	// 创建日志
 	log := logger.New(logLevel, logDir)
 
@@ -33,8 +34,8 @@ func NewServer(listenAddr, targetAddr, logLevel, logDir string) (*Server, error)
 		return nil, err
 	}
 
-	// 创建缓存
-	c := cache.New()
+	// 创建缓存（使用指定的TTL）
+	c := cache.NewWithTTL(cacheTTL)
 
 	// 创建处理器
 	ph := handler.NewPlaybackHandler(c, log)
@@ -44,13 +45,13 @@ func NewServer(listenAddr, targetAddr, logLevel, logDir string) (*Server, error)
 	proxy := httputil.NewSingleHostReverseProxy(targetURL)
 
 	return &Server{
-		listenAddr:    listenAddr,
-		targetURL:     targetURL,
-		logger:        log,
-		cache:         c,
+		listenAddr:      listenAddr,
+		targetURL:       targetURL,
+		logger:          log,
+		cache:           c,
 		playbackHandler: ph,
-		streamHandler: sh,
-		proxy:         proxy,
+		streamHandler:   sh,
+		proxy:           proxy,
 	}, nil
 }
 
