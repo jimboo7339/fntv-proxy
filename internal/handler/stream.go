@@ -111,7 +111,7 @@ func (h *StreamHandler) resolveURL(urlStr string) (string, error) {
 
 // isStreamRequest 检查是否是视频流请求
 func isStreamRequest(r *http.Request) bool {
-	path := r.URL.Path
-	return strings.Contains(path, "/stream.mp4") ||
+	path := strings.ToLower(r.URL.Path)
+	return strings.Contains(path, "/stream.") ||
 		strings.Contains(path, "/master.m3u8")
 }
