@@ -39,15 +39,11 @@ func (h *StreamHandler) Handle(w http.ResponseWriter, r *http.Request) bool {
 
 	// 获取MediaSourceId
 	mediaSourceID := r.URL.Query().Get("MediaSourceId")
-	if mediaSourceID == "" {
-		h.logger.Warn("❌ 缺少MediaSourceId参数")
-		return false
-	}
 
-	// 从缓存查找
-	source, found := h.cache.Get(mediaSourceID)
+	// 从缓存查找（先按MediaSourceId查，找不到再按ItemId查）
+	source, found := h.findInCache(r, mediaSourceID)
 	if !found {
-		h.logger.Warn("❌ MediaSourceId %s 不在缓存中", mediaSourceID)
+		h.logger.Warn("❌ MediaSourceId %s 和 ItemId 都不在缓存中", mediaSourceID)
 		return false
 	}
 
@@ -107,6 +103,48 @@ func (h *StreamHandler) resolveURL(urlStr string) (string, error) {
 
 	// 如果不是重定向，返回原始URL
 	return urlStr, nil
+}
+
+// findInCache 从缓存查找MediaSource（支持MediaSourceId和ItemId）
+func (h *StreamHandler) findInCache(r *http.Request, mediaSourceID string) (cache.MediaSource, bool) {
+	// 1. 先按MediaSourceId查找
+	if mediaSourceID != "" {
+		if source, found := h.cache.Get(mediaSourceID); found {
+			h.logger.Info("✅ 通过 MediaSourceId 找到缓存: %s", mediaSourceID)
+			return source, true
+		}
+	}
+
+	// 2. 从URL路径提取ItemId查找
+	itemID := extractItemID(r.URL.Path)
+	if itemID != "" {
+		if source, found := h.cache.GetByItemID(itemID); found {
+			h.logger.Info("✅ 通过 ItemId 找到缓存: %s", itemID)
+			return source, true
+		}
+	}
+
+	return cache.MediaSource{}, false
+}
+
+// extractItemID 从URL路径提取ItemId
+// 例如: /emby/videos/064d9e7c19cb41ed884bcf8e22e64f80/stream.MKV
+func extractItemID(path string) string {
+	// 移除前缀 /emby
+	path = strings.TrimPrefix(path, "/emby")
+
+	// 匹配 /videos/{itemId}/ 或 /Items/{itemId}/
+	parts := strings.Split(path, "/")
+	for i, part := range parts {
+		if (part == "videos" || part == "Items") && i+1 < len(parts) {
+			itemID := parts[i+1]
+			// 验证是32位十六进制
+			if len(itemID) == 32 {
+				return itemID
+			}
+		}
+	}
+	return ""
 }
 
 // isStreamRequest 检查是否是视频流请求

@@ -14,6 +14,7 @@ import (
 
 // PlaybackInfoResponse PlaybackInfo响应结构
 type PlaybackInfoResponse struct {
+	ItemID       string `json:"ItemId"` // 添加ItemId字段
 	MediaSources []struct {
 		ID       string `json:"Id"`
 		Path     string `json:"Path"`
@@ -60,11 +61,12 @@ func (h *PlaybackHandler) Handle(resp *http.Response, body []byte) ([]byte, erro
 		if strings.HasSuffix(source.Path, ".strm") {
 			h.cache.Set(source.ID, cache.MediaSource{
 				ID:       source.ID,
+				ItemID:   playbackInfo.ItemID,
 				Path:     source.Path,
 				Protocol: source.Protocol,
 			})
 			strmCount++
-			h.logger.Info("📄 缓存.strm: MediaSourceId=%s", source.ID)
+			h.logger.Info("📄 缓存.strm: MediaSourceId=%s, ItemId=%s", source.ID, playbackInfo.ItemID)
 		}
 	}
 

@@ -8,6 +8,7 @@ import (
 // MediaSource 媒体源信息
 type MediaSource struct {
 	ID       string
+	ItemID   string // 关联的ItemId
 	Path     string
 	Protocol string
 }
@@ -20,7 +21,8 @@ type cacheItem struct {
 
 // Cache MediaSource缓存
 type Cache struct {
-	items       map[string]cacheItem
+	items       map[string]cacheItem // MediaSourceId -> MediaSource
+	itemIndex   map[string]string    // ItemId -> MediaSourceId
 	mutex       sync.RWMutex
 	ttl         time.Duration
 	stopCleaner chan struct{}
@@ -35,6 +37,7 @@ func New() *Cache {
 func NewWithTTL(ttl time.Duration) *Cache {
 	c := &Cache{
 		items:       make(map[string]cacheItem),
+		itemIndex:   make(map[string]string),
 		ttl:         ttl,
 		stopCleaner: make(chan struct{}),
 	}
@@ -49,6 +52,10 @@ func (c *Cache) Set(id string, source MediaSource) {
 	c.items[id] = cacheItem{
 		source: source,
 		expire: time.Now().Add(c.ttl),
+	}
+	// 建立ItemId索引
+	if source.ItemID != "" {
+		c.itemIndex[source.ItemID] = id
 	}
 	c.mutex.Unlock()
 }
@@ -72,9 +79,25 @@ func (c *Cache) Get(id string) (MediaSource, bool) {
 	return item.source, true
 }
 
+// GetByItemID 通过ItemId查找MediaSource
+func (c *Cache) GetByItemID(itemID string) (MediaSource, bool) {
+	c.mutex.RLock()
+	mediaSourceID, found := c.itemIndex[itemID]
+	c.mutex.RUnlock()
+
+	if !found {
+		return MediaSource{}, false
+	}
+
+	return c.Get(mediaSourceID)
+}
+
 // Delete 删除缓存
 func (c *Cache) Delete(id string) {
 	c.mutex.Lock()
+	if item, ok := c.items[id]; ok && item.source.ItemID != "" {
+		delete(c.itemIndex, item.source.ItemID)
+	}
 	delete(c.items, id)
 	c.mutex.Unlock()
 }
