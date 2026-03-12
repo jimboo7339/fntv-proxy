@@ -2,6 +2,8 @@
 
 飞牛影视代理工具 - 自动解析 .strm 文件并重定向
 
+已测试OpenList挂载的夸克TV生成的strm，在CapyPlayer播放器正常播放，理论上其他存储的strm也支持，如有问题请提issue
+
 ## 功能
 
 - 透明代理飞牛影视服务
@@ -72,11 +74,9 @@ fntv-proxy/
 
 ```yaml
 # docker-compose.yml
-version: '3.8'
-
 services:
   fntv-proxy:
-    build: .
+    image: jimboo7339/fntv-proxy:latest
     container_name: fntv-proxy
     ports:
       - "28005:28005"
@@ -87,6 +87,7 @@ services:
       - LOG_LEVEL=info          # 生产环境用info
     restart: unless-stopped
 ```
+**strm路径一定要挂载到docker容器中，不然会播放失败，找不到strm路径**
 
 ### 调试模式
 
@@ -106,5 +107,7 @@ volumes:
 3. **重定向**: 读取 .strm 文件，返回 302 到真实 URL
 
 ## 声明
-1.本项目仅针对 **夸克网盘** 在 **openlist**的**夸克TV驱动**挂载下，实现302
-2.经测试**CapyPlayer**下播放器正常播放
+
+1. 本项目仅针对 **夸克网盘** 在 **openlist**的**夸克TV驱动**挂载下，实现302
+2. 只要strm文件中的地址能正常下载文件，就可以通过本工具实现第三方播放器播放
+3. 经测试 **CapyPlayer** **Vidhub** **爆米花** 下播放器正常播放

@@ -1,8 +1,6 @@
-version: '3.8'
-
 services:
   fntv-proxy:
-    build: .
+    image: jimboo7339/fntv-proxy:latest
     container_name: fntv-proxy
     ports:
       - "28005:28005"
