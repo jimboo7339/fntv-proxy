@@ -81,11 +81,24 @@ services:
     ports:
       - "28005:28005"
     volumes:
-      - /vol00:/vol00:ro        # strm文件目录
+      # 挂载strm文件目录（根据实际路径修改）
+      - /vol00:/vol00:ro
+      # 可选：挂载日志目录（debug模式）
+      # - ./logs:/app/logs
     environment:
-      - TARGET_ADDR=http://192.168.1.100:8005
-      - LOG_LEVEL=info          # 生产环境用info
+      # 飞牛影视地址
+      - TARGET_ADDR=http://127.0.0.1:8005
+      # 日志级别: debug/info/warn/error
+      - LOG_LEVEL=info
+      # strm缓存过期时间 默认1小时
+      - CACHE_TL=60
+      # 日志目录（debug模式需要，info模式可省略）
+      # - LOG_DIR=/app/logs
+      # 或 America/New_York, Europe/London 等
+      # - TZ=Asia/Shanghai
     restart: unless-stopped
+    # 使用host网络可以访问本机8005
+    # network_mode: host
 ```
 **strm路径一定要挂载到docker容器中，不然会播放失败，找不到strm路径**
 
