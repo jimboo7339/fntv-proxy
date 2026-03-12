@@ -13,7 +13,8 @@ import (
 type Level int
 
 const (
-	DebugLevel Level = iota
+	TraceLevel Level = iota // 新增：最详细的追踪级别
+	DebugLevel
 	InfoLevel
 	WarnLevel
 	ErrorLevel
@@ -51,6 +52,8 @@ func New(level, logDir string) *Logger {
 
 func parseLevel(level string) Level {
 	switch level {
+	case "trace":
+		return TraceLevel
 	case "debug":
 		return DebugLevel
 	case "info":
@@ -67,6 +70,14 @@ func parseLevel(level string) Level {
 // SetLevel 设置日志级别
 func (l *Logger) SetLevel(level string) {
 	l.level = parseLevel(level)
+}
+
+// Trace 追踪日志（最详细，记录请求/响应完整内容）
+func (l *Logger) Trace(format string, v ...interface{}) {
+	if l.level <= TraceLevel {
+		msg := fmt.Sprintf(format, v...)
+		l.write("TRACE", msg, l.fileLog) // trace只写文件，避免控制台刷屏
+	}
 }
 
 // Debug 调试日志（debug级别才输出到文件）

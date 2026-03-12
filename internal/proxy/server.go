@@ -143,12 +143,74 @@ func (s *Server) loggingMiddleware(next http.Handler) http.Handler {
 		// 记录请求（debug级别）
 		s.logger.Debug("请求: %s %s", r.Method, r.URL.Path)
 
+		// trace级别：记录完整请求信息
+		s.logRequest(r)
+
+		// 包装ResponseWriter以捕获响应
+		wrapped := &responseRecorder{ResponseWriter: w, statusCode: 200}
+
 		// 检查是否是视频流请求
-		if s.streamHandler.Handle(w, r) {
+		if s.streamHandler.Handle(wrapped, r) {
+			// trace级别：记录响应
+			s.logResponse(r, wrapped)
 			return // 已处理，直接返回
 		}
 
 		// 继续处理
-		next.ServeHTTP(w, r)
+		next.ServeHTTP(wrapped, r)
+
+		// trace级别：记录响应
+		s.logResponse(r, wrapped)
 	})
+}
+
+// logRequest 记录完整请求（trace级别）
+func (s *Server) logRequest(r *http.Request) {
+	// 读取请求体
+	body, _ := io.ReadAll(r.Body)
+	r.Body = io.NopCloser(bytes.NewBuffer(body))
+
+	// 记录请求详情
+	s.logger.Trace("=== REQUEST ===")
+	s.logger.Trace("Method: %s", r.Method)
+	s.logger.Trace("URL: %s", r.URL.String())
+	s.logger.Trace("Headers:")
+	for name, values := range r.Header {
+		for _, v := range values {
+			s.logger.Trace("  %s: %s", name, v)
+		}
+	}
+	if len(body) > 0 {
+		s.logger.Trace("Body: %s", string(body))
+	}
+	s.logger.Trace("===============")
+}
+
+// logResponse 记录完整响应（trace级别）
+func (s *Server) logResponse(r *http.Request, rec *responseRecorder) {
+	s.logger.Trace("=== RESPONSE ===")
+	s.logger.Trace("Request: %s %s", r.Method, r.URL.Path)
+	s.logger.Trace("Status: %d", rec.statusCode)
+	s.logger.Trace("Headers:")
+	for name, values := range rec.Header() {
+		for _, v := range values {
+			s.logger.Trace("  %s: %s", name, v)
+		}
+	}
+	s.logger.Trace("================")
+}
+
+// responseRecorder 包装ResponseWriter以捕获状态码
+type responseRecorder struct {
+	http.ResponseWriter
+	statusCode int
+	written    bool
+}
+
+func (rec *responseRecorder) WriteHeader(code int) {
+	if !rec.written {
+		rec.statusCode = code
+		rec.written = true
+		rec.ResponseWriter.WriteHeader(code)
+	}
 }

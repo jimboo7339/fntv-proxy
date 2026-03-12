@@ -82,10 +82,36 @@ services:
 
 | 级别 | 输出位置 | 说明 |
 |------|---------|------|
+| `trace` | 文件 | **最详细**，记录完整请求/响应头、体（排查问题用） |
 | `debug` | 控制台 + 文件 | 记录所有请求和响应 |
 | `info` | 控制台 | 只输出关键信息（推荐生产环境） |
 | `warn` | 控制台 | 只输出警告和错误 |
 | `error` | 控制台 | 只输出错误 |
+
+### trace 级别使用示例
+
+```yaml
+log_level: "trace"
+log_dir: "./logs"
+```
+
+日志文件将包含：
+```
+=== REQUEST ===
+Method: GET
+URL: /Items/xxx/PlaybackInfo?MediaSourceId=yyy
+Headers:
+  User-Agent: xxx
+  Authorization: xxx
+Body: {...}
+===============
+=== RESPONSE ===
+Request: GET /Items/xxx/PlaybackInfo
+Status: 200
+Headers:
+  Content-Type: application/json
+================
+```
 
 ## 目录结构
 
