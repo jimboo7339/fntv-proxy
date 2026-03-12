@@ -1,0 +1,5 @@
+listen: ":28005"
+target: "http://127.0.0.1:8005"
+log_level: "info"
+log_dir: "./logs"
+cache_ttl: 60  # 分钟
