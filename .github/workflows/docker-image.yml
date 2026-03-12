@@ -36,8 +36,8 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=semver,pattern={{version}}  
-            type=raw,value=latest,enable={{is_default_branch}}  
+            type=semver,pattern={{version}}  # v0.0.1
+            type=raw,value=latest,enable={{is_default_branch}}  # latest
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
@@ -49,3 +49,12 @@ jobs:
           platforms: linux/amd64,linux/arm64
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Update Docker Hub README
+        if: github.event_name != 'pull_request'
+        uses: peter-evans/dockerhub-description@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+          repository: ${{ env.IMAGE_NAME }}
+          readme-filepath: ./README.md
