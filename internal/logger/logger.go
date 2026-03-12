@@ -72,6 +72,11 @@ func (l *Logger) SetLevel(level string) {
 	l.level = parseLevel(level)
 }
 
+// GetLevel 获取当前日志级别
+func (l *Logger) GetLevel() Level {
+	return l.level
+}
+
 // Trace 追踪日志（最详细，记录请求/响应完整内容）
 func (l *Logger) Trace(format string, v ...interface{}) {
 	if l.level <= TraceLevel {
@@ -123,8 +128,8 @@ func (l *Logger) write(level, msg string, console bool) {
 		log.Println(logLine)
 	}
 
-	// 写入文件
-	if l.fileLog && l.level == DebugLevel {
+	// 写入文件（debug 或 trace 级别时写入）
+	if l.fileLog && (l.level == DebugLevel || l.level == TraceLevel) {
 		l.mutex.Lock()
 		defer l.mutex.Unlock()
 

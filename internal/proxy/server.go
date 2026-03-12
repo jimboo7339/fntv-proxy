@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"strings"
 	"time"
 )
 
@@ -103,6 +104,11 @@ func (s *Server) handleResponse(resp *http.Response) error {
 	}
 	resp.Body.Close()
 
+	// trace级别：记录响应体
+	if s.logger.GetLevel() <= logger.TraceLevel {
+		s.logResponseBody(resp, body)
+	}
+
 	// 检查是否是PlaybackInfo
 	if s.isPlaybackInfoRequest(resp.Request) {
 		newBody, err := s.playbackHandler.Handle(resp, body)
@@ -118,6 +124,26 @@ func (s *Server) handleResponse(resp *http.Response) error {
 	return nil
 }
 
+// logResponseBody 记录响应体（trace级别）
+func (s *Server) logResponseBody(resp *http.Response, body []byte) {
+	s.logger.Trace("=== RESPONSE BODY ===")
+	s.logger.Trace("Request: %s %s", resp.Request.Method, resp.Request.URL.Path)
+	s.logger.Trace("Status: %d", resp.StatusCode)
+	s.logger.Trace("Headers:")
+	for name, values := range resp.Header {
+		for _, v := range values {
+			s.logger.Trace("  %s: %s", name, v)
+		}
+	}
+	// 限制Body大小，避免日志过大
+	bodyStr := string(body)
+	if len(bodyStr) > 10000 {
+		bodyStr = bodyStr[:10000] + "... (truncated)"
+	}
+	s.logger.Trace("Body: %s", bodyStr)
+	s.logger.Trace("=====================")
+}
+
 // isPlaybackInfoRequest 检查是否是PlaybackInfo
 func (s *Server) isPlaybackInfoRequest(req *http.Request) bool {
 	// 支持 GET 和 POST 请求
@@ -129,12 +155,7 @@ func (s *Server) isPlaybackInfoRequest(req *http.Request) bool {
 }
 
 func contains(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
+	return strings.Contains(s, substr)
 }
 
 // loggingMiddleware 日志中间件
@@ -143,31 +164,32 @@ func (s *Server) loggingMiddleware(next http.Handler) http.Handler {
 		// 记录请求（debug级别）
 		s.logger.Debug("请求: %s %s", r.Method, r.URL.Path)
 
-		// trace级别：记录完整请求信息
-		s.logRequest(r)
+		// trace级别：记录完整请求信息（包括body）
+		if s.logger.GetLevel() <= logger.TraceLevel {
+			s.logRequest(r)
+		}
 
 		// 包装ResponseWriter以捕获响应
 		wrapped := &responseRecorder{ResponseWriter: w, statusCode: 200}
 
 		// 检查是否是视频流请求
 		if s.streamHandler.Handle(wrapped, r) {
-			// trace级别：记录响应
-			s.logResponse(r, wrapped)
 			return // 已处理，直接返回
 		}
 
 		// 继续处理
 		next.ServeHTTP(wrapped, r)
-
-		// trace级别：记录响应
-		s.logResponse(r, wrapped)
 	})
 }
 
-// logRequest 记录完整请求（trace级别）
-func (s *Server) logRequest(r *http.Request) {
+// logRequest 记录完整请求（trace级别），返回读取的body用于恢复
+func (s *Server) logRequest(r *http.Request) []byte {
 	// 读取请求体
-	body, _ := io.ReadAll(r.Body)
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		s.logger.Trace("读取请求体失败: %v", err)
+	}
+	// 恢复请求体，供后续处理使用
 	r.Body = io.NopCloser(bytes.NewBuffer(body))
 
 	// 记录请求详情
@@ -181,23 +203,16 @@ func (s *Server) logRequest(r *http.Request) {
 		}
 	}
 	if len(body) > 0 {
-		s.logger.Trace("Body: %s", string(body))
+		// 限制Body大小
+		bodyStr := string(body)
+		if len(bodyStr) > 10000 {
+			bodyStr = bodyStr[:10000] + "... (truncated)"
+		}
+		s.logger.Trace("Body: %s", bodyStr)
 	}
 	s.logger.Trace("===============")
-}
 
-// logResponse 记录完整响应（trace级别）
-func (s *Server) logResponse(r *http.Request, rec *responseRecorder) {
-	s.logger.Trace("=== RESPONSE ===")
-	s.logger.Trace("Request: %s %s", r.Method, r.URL.Path)
-	s.logger.Trace("Status: %d", rec.statusCode)
-	s.logger.Trace("Headers:")
-	for name, values := range rec.Header() {
-		for _, v := range values {
-			s.logger.Trace("  %s: %s", name, v)
-		}
-	}
-	s.logger.Trace("================")
+	return body
 }
 
 // responseRecorder 包装ResponseWriter以捕获状态码
