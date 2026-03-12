@@ -1,11 +1,9 @@
 name: Build and Push Docker Image
 
 on:
-  push:
-    branches: [ main, master ]
-    tags: [ 'v*' ]
-  pull_request:
-    branches: [ main, master ]
+  release:
+    types: [ published ]  # 发布 release 时触发
+  workflow_dispatch:      # 手动触发
 
 env:
   REGISTRY: docker.io
