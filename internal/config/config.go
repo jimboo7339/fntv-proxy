@@ -2,11 +2,12 @@ package config
 
 import (
 	"log"
+	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/fsnotify/fsnotify"
 	"github.com/spf13/viper"
 )
 
@@ -74,26 +75,70 @@ func Load(configPath string) error {
 	return nil
 }
 
-// Watch 监听配置变化
+// Watch 监听配置变化（支持 Docker 卷挂载）
 func Watch(onChange func()) {
-	viper.WatchConfig()
-	viper.OnConfigChange(func(e fsnotify.Event) {
-		log.Printf("📝 配置文件发生变化: %s", e.Name)
+	configFile := viper.ConfigFileUsed()
+	if configFile == "" {
+		log.Println("⚠️ 未找到配置文件，跳过监听")
+		return
+	}
 
-		// 重新加载
-		if err := viper.Unmarshal(Global); err != nil {
-			log.Printf("❌ 重新加载配置失败: %v", err)
-			return
+	// 使用轮询方式检测文件变化（兼容 Docker bind mount）
+	go pollConfigChanges(configFile, onChange)
+}
+
+// pollConfigChanges 轮询检测配置文件变化
+func pollConfigChanges(configFile string, onChange func()) {
+	var lastModTime time.Time
+
+	// 获取初始修改时间
+	if info, err := os.Stat(configFile); err == nil {
+		lastModTime = info.ModTime()
+	}
+
+	ticker := time.NewTicker(2 * time.Second)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		info, err := os.Stat(configFile)
+		if err != nil {
+			continue
 		}
 
-		Global.CacheTTL = time.Duration(viper.GetInt("cache_ttl")) * time.Minute
-
-		log.Println("✅ 配置已热重载")
-
-		if onChange != nil {
-			onChange()
+		// 检测到修改
+		if info.ModTime().After(lastModTime) {
+			lastModTime = info.ModTime()
+			handleConfigChange(configFile, onChange)
 		}
-	})
+	}
+}
+
+// handleConfigChange 处理配置变更
+func handleConfigChange(configFile string, onChange func()) {
+	log.Printf("📝 配置文件发生变化: %s", configFile)
+
+	// 重新读取配置文件
+	viper.SetConfigFile(configFile)
+	if err := viper.ReadInConfig(); err != nil {
+		log.Printf("❌ 读取配置文件失败: %v", err)
+		return
+	}
+
+	// 重新加载到结构体
+	Global.mutex.Lock()
+	if err := viper.Unmarshal(Global); err != nil {
+		Global.mutex.Unlock()
+		log.Printf("❌ 解析配置失败: %v", err)
+		return
+	}
+	Global.CacheTTL = time.Duration(viper.GetInt("cache_ttl")) * time.Minute
+	Global.mutex.Unlock()
+
+	log.Println("✅ 配置已热重载")
+
+	if onChange != nil {
+		onChange()
+	}
 }
 
 // GetListenAddr 获取监听地址（线程安全）
