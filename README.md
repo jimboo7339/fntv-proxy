@@ -2,14 +2,19 @@
 
 飞牛影视代理工具 - 自动解析 .strm 文件并重定向
 
-已测试OpenList挂载的夸克TV生成的strm，在CapyPlayer播放器正常播放，理论上其他存储的strm也支持，如有问题请提issue
+- 基于**飞牛影视0.9.3**版本
+
+- 已测试夸克网盘生成的strm
+- 已测试115网盘生成的strm [#1](https://github.com/jimboo7339/fntv-proxy/issues/1)
+- 如有问题请提issue
+
+
 
 ## 功能
 
 - ✅ 透明代理飞牛影视服务
 - ✅ 自动缓存 PlaybackInfo 中的 .strm MediaSource
 - ✅ 拦截视频流请求，返回 302 重定向到真实 URL
-- ✅ **配置文件热重载** - 修改配置无需重启
 - ✅ 支持日志级别配置
 - ✅ 缓存过期时间可配置
 - ✅ 优雅关闭
@@ -35,20 +40,6 @@ log_dir: "./logs"
 
 # 缓存过期时间（分钟）
 cache_ttl: 60
-```
-
-### 热重载
-
-修改 `config.yaml` 后**自动生效**，无需重启容器：
-
-```bash
-# 修改配置
-echo "log_level: debug" > config.yaml
-
-# 1秒后自动生效，查看日志确认
-docker-compose logs -f
-# 📝 配置文件发生变化: /app/config.yaml
-# ✅ 配置已热重载
 ```
 
 ## Docker Compose 配置
@@ -172,3 +163,14 @@ fntv-proxy/
 1. 本项目仅针对 **夸克网盘** 在 **openlist**的**夸克TV驱动**挂载下，实现302
 2. 只要strm文件中的地址能正常下载文件，就可以通过本工具实现第三方播放器播放
 3. 经测试 **CapyPlayer** **Vidhub** **爆米花** 下播放器正常播放
+
+
+## 贡献者
+
+<a href="https://github.com/jimboo7339/fntv-proxy/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=jimboo7339/fntv-proxy" />
+</a>
+
+## 项目 Star 数增长趋势
+
+[![Star History Chart](https://api.star-history.com/svg?repos=jimboo7339/fntv-proxy&type=Date)](https://star-history.com/#jimboo7339/fntv-proxy&Date)
