@@ -61,8 +61,9 @@ services:
     ports:
       - "28005:28005"
     volumes:
-      # 挂载strm文件目录（根据实际路径修改）
-      - /vol00:/vol00:ro
+      # 挂载strm文件目录（根据实际路径修改） 前后都要修改，在宿主主机是什么位置，在容器里就是什么位置
+      - /vol00/strm:/vol00/strm:ro
+      - /vol01/strm:/vol01/strm:ro
       # 挂载配置文件（用于热重载）
       - ./config.yaml:/app/config.yaml:ro
     environment:
