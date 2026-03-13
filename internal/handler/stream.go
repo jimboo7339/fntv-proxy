@@ -62,8 +62,8 @@ func (h *StreamHandler) Handle(w http.ResponseWriter, r *http.Request) bool {
 
 	h.logger.Info("📄 strm内容: %s", strmURL)
 
-	// 请求strm URL，获取最终地址
-	finalURL, err := h.resolveURL(strmURL)
+	// 请求strm URL，获取最终地址（透传原始请求的UA）
+	finalURL, err := h.resolveURL(strmURL, r)
 	if err != nil {
 		h.logger.Error("❌ 解析URL失败: %v", err)
 		return false
@@ -78,14 +78,21 @@ func (h *StreamHandler) Handle(w http.ResponseWriter, r *http.Request) bool {
 }
 
 // resolveURL 请求URL，跟随重定向，返回最终地址
-func (h *StreamHandler) resolveURL(urlStr string) (string, error) {
+// 透传原始请求的UA
+func (h *StreamHandler) resolveURL(urlStr string, originalReq *http.Request) (string, error) {
 	req, err := http.NewRequest("GET", urlStr, nil)
 	if err != nil {
 		return "", err
 	}
 
-	// 设置请求头（模拟浏览器）
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+	// 透传原始请求的UA
+	originalUA := originalReq.Header.Get("User-Agent")
+	if originalUA != "" {
+		req.Header.Set("User-Agent", originalUA)
+		h.logger.Debug("透传UA: %s", originalUA)
+	} else {
+		req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36 Edg/138.0.0.0")
+	}
 
 	resp, err := h.client.Do(req)
 	if err != nil {
