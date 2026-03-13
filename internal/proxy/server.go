@@ -97,7 +97,12 @@ func (s *Server) Reload() {
 
 // handleResponse 处理响应
 func (s *Server) handleResponse(resp *http.Response) error {
-	// 读取响应体
+	// 只处理 PlaybackInfo，其他响应直接透传（避免读取大文件到内存）
+	if !s.isPlaybackInfoRequest(resp.Request) {
+		return nil
+	}
+
+	// 读取响应体（PlaybackInfo 数据量小，可以安全读取）
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err
@@ -109,18 +114,12 @@ func (s *Server) handleResponse(resp *http.Response) error {
 		s.logResponseBody(resp, body)
 	}
 
-	// 检查是否是PlaybackInfo
-	if s.isPlaybackInfoRequest(resp.Request) {
-		newBody, err := s.playbackHandler.Handle(resp, body)
-		if err != nil {
-			s.logger.Error("处理PlaybackInfo失败: %v", err)
-		}
-		resp.Body = io.NopCloser(bytes.NewBuffer(newBody))
-		return nil
+	// 处理 PlaybackInfo
+	newBody, err := s.playbackHandler.Handle(resp, body)
+	if err != nil {
+		s.logger.Error("处理PlaybackInfo失败: %v", err)
 	}
-
-	// 恢复原响应
-	resp.Body = io.NopCloser(bytes.NewBuffer(body))
+	resp.Body = io.NopCloser(bytes.NewBuffer(newBody))
 	return nil
 }
 
