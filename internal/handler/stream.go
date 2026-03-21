@@ -53,6 +53,14 @@ func (h *StreamHandler) Handle(w http.ResponseWriter, r *http.Request) bool {
 		return false
 	}
 
+	// 尝试从缓存获取直链
+	if streamURL, found := h.cache.GetStreamURL(source.ID); found {
+		h.logger.Info("✅ 从缓存获取直链: %s", streamURL.URL)
+		w.Header().Set("Location", streamURL.URL)
+		w.WriteHeader(http.StatusFound)
+		return true
+	}
+
 	// 读取.strm文件
 	strmURL, err := ReadStrmFile(source.Path)
 	if err != nil {
@@ -70,6 +78,10 @@ func (h *StreamHandler) Handle(w http.ResponseWriter, r *http.Request) bool {
 	}
 
 	h.logger.Info("✅ 最终地址: %s", finalURL)
+
+	// 缓存直链
+	h.cache.SetStreamURL(source.ID, finalURL)
+	h.logger.Info("💾 已缓存直链到 MediaSourceId: %s", source.ID)
 
 	// 返回302重定向到最终地址
 	w.Header().Set("Location", finalURL)

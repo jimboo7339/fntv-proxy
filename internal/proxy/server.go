@@ -37,8 +37,8 @@ func NewServer(cfg *config.Config) (*Server, error) {
 		return nil, err
 	}
 
-	// 创建缓存（使用配置中的TTL）
-	c := cache.NewWithTTL(cfg.GetCacheTTL())
+	// 创建缓存（直链缓存使用 cache_ttl，MediaSource 不过期）
+	c := cache.NewWithStreamTTL(cfg.GetCacheTTL())
 
 	// 创建处理器
 	ph := handler.NewPlaybackHandler(c, log)

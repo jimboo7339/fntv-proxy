@@ -38,7 +38,7 @@ log_level: "info"
 # 日志目录（debug级别时写入，info级别可省略）
 log_dir: "./logs"
 
-# 缓存过期时间（分钟）
+# 缓存过期时间（分钟），默认1小时
 cache_ttl: 60
 ```
 
@@ -69,6 +69,9 @@ services:
 |------|------|--------|
 | `CONFIG` | 配置文件路径 | `./config.yaml` |
 | `TZ` | 时区 | `Asia/Shanghai` |
+| `FNTV_CACHE_TTL` | 直链缓存过期时间（分钟） | `60` |
+
+**注意**: `FNTV_CACHE_TTL` 优先级高于配置文件中的 `cache_ttl`
 
 ## 日志级别说明
 

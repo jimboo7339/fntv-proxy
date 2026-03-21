@@ -13,19 +13,32 @@ type MediaSource struct {
 	Protocol string
 }
 
+// StreamURL 视频流直链缓存
+type StreamURL struct {
+	URL        string
+	MediaSrcID string // 关联的 MediaSourceId
+}
+
 // cacheItem 带过期时间的缓存项
 type cacheItem struct {
 	source MediaSource
 	expire time.Time
 }
 
-// Cache MediaSource缓存
+// Cache 缓存
 type Cache struct {
-	items       map[string]cacheItem // MediaSourceId -> MediaSource
-	itemIndex   map[string]string    // ItemId -> MediaSourceId
+	items       map[string]cacheItem       // MediaSourceId -> MediaSource（有过期时间）
+	itemIndex   map[string]string          // ItemId -> MediaSourceId
+	streamURLs  map[string]streamCacheItem // MediaSourceId -> StreamURL（直链缓存，有过期时间）
 	mutex       sync.RWMutex
-	ttl         time.Duration
+	ttl         time.Duration              // MediaSource 和直链缓存共用同一个 TTL
 	stopCleaner chan struct{}
+}
+
+// streamCacheItem 带过期时间的直链缓存项
+type streamCacheItem struct {
+	url    StreamURL
+	expire time.Time
 }
 
 // New 创建缓存，默认1小时过期
@@ -33,12 +46,13 @@ func New() *Cache {
 	return NewWithTTL(1 * time.Hour)
 }
 
-// NewWithTTL 创建指定过期时间的缓存
-func NewWithTTL(ttl time.Duration) *Cache {
+// NewWithStreamTTL 创建缓存，指定直链 TTL（MediaSource 不过期）
+func NewWithStreamTTL(streamTTL time.Duration) *Cache {
 	c := &Cache{
 		items:       make(map[string]cacheItem),
 		itemIndex:   make(map[string]string),
-		ttl:         ttl,
+		streamURLs:  make(map[string]streamCacheItem),
+		ttl:         streamTTL,
 		stopCleaner: make(chan struct{}),
 	}
 	// 启动清理协程
@@ -46,7 +60,12 @@ func NewWithTTL(ttl time.Duration) *Cache {
 	return c
 }
 
-// Set 设置缓存
+// NewWithTTL 创建指定过期时间的缓存（兼容旧接口，ttl 用于直链缓存）
+func NewWithTTL(ttl time.Duration) *Cache {
+	return NewWithStreamTTL(ttl)
+}
+
+// Set 设置 MediaSource 缓存（使用同样的 TTL）
 func (c *Cache) Set(id string, source MediaSource) {
 	c.mutex.Lock()
 	c.items[id] = cacheItem{
@@ -117,13 +136,62 @@ func (c *Cache) cleaner() {
 	}
 }
 
-// cleanup 清理过期项
+// SetStreamURL 设置直链缓存
+func (c *Cache) SetStreamURL(mediaSourceID string, url string) {
+	c.mutex.Lock()
+	c.streamURLs[mediaSourceID] = streamCacheItem{
+		url: StreamURL{
+			URL:        url,
+			MediaSrcID: mediaSourceID,
+		},
+		expire: time.Now().Add(c.ttl),
+	}
+	c.mutex.Unlock()
+}
+
+// GetStreamURL 获取直链缓存（自动检查过期）
+func (c *Cache) GetStreamURL(mediaSourceID string) (StreamURL, bool) {
+	c.mutex.RLock()
+	item, found := c.streamURLs[mediaSourceID]
+	c.mutex.RUnlock()
+
+	if !found {
+		return StreamURL{}, false
+	}
+
+	// 检查是否过期
+	if time.Now().After(item.expire) {
+		c.DeleteStreamURL(mediaSourceID)
+		return StreamURL{}, false
+	}
+
+	return item.url, true
+}
+
+// DeleteStreamURL 删除直链缓存
+func (c *Cache) DeleteStreamURL(mediaSourceID string) {
+	c.mutex.Lock()
+	delete(c.streamURLs, mediaSourceID)
+	c.mutex.Unlock()
+}
+
+// cleanup 清理过期项（清理 MediaSource 和直链缓存）
 func (c *Cache) cleanup() {
 	now := time.Now()
 	c.mutex.Lock()
+	// 清理 MediaSource 缓存
 	for id, item := range c.items {
 		if now.After(item.expire) {
+			if item.source.ItemID != "" {
+				delete(c.itemIndex, item.source.ItemID)
+			}
 			delete(c.items, id)
+		}
+	}
+	// 清理直链缓存
+	for id, item := range c.streamURLs {
+		if now.After(item.expire) {
+			delete(c.streamURLs, id)
 		}
 	}
 	c.mutex.Unlock()

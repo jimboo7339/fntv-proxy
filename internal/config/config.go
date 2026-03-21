@@ -16,7 +16,7 @@ type Config struct {
 	TargetAddr string        `mapstructure:"target"`
 	LogLevel   string        `mapstructure:"log_level"`
 	LogDir     string        `mapstructure:"log_dir"`
-	CacheTTL   time.Duration `mapstructure:"cache_ttl"`
+	CacheTTL   time.Duration `mapstructure:"cache_ttl"` // 直链缓存 TTL（复用原有配置名）
 	mutex      sync.RWMutex
 }
 
@@ -26,7 +26,7 @@ var Global = &Config{
 	TargetAddr: "http://127.0.0.1:8005",
 	LogLevel:   "info",
 	LogDir:     "./logs",
-	CacheTTL:   60 * time.Minute,
+	CacheTTL:   60 * time.Minute, // 默认直链缓存1小时
 }
 
 // Load 加载配置
@@ -67,10 +67,11 @@ func Load(configPath string) error {
 		return err
 	}
 
-	// 转换 cache_ttl 为 Duration
+	// 转换 cache_ttl 为 Duration（用于直链缓存）
 	Global.CacheTTL = time.Duration(viper.GetInt("cache_ttl")) * time.Minute
 
 	log.Printf("✅ 配置加载完成: %s", viper.ConfigFileUsed())
+	log.Printf("📦 直链缓存TTL: %v", Global.CacheTTL)
 	return nil
 }
 
@@ -161,7 +162,7 @@ func (c *Config) GetLogLevel() string {
 	return c.LogLevel
 }
 
-// GetCacheTTL 获取缓存TTL
+// GetCacheTTL 获取直链缓存TTL
 func (c *Config) GetCacheTTL() time.Duration {
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
