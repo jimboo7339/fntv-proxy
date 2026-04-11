@@ -3,6 +3,7 @@ package config
 import (
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -10,14 +11,21 @@ import (
 	"github.com/spf13/viper"
 )
 
+// PathMapping 路径替换规则
+type PathMapping struct {
+	From string `mapstructure:"from"`
+	To   string `mapstructure:"to"`
+}
+
 // Config 配置结构
 type Config struct {
-	ListenAddr string        `mapstructure:"listen"`
-	TargetAddr string        `mapstructure:"target"`
-	LogLevel   string        `mapstructure:"log_level"`
-	LogDir     string        `mapstructure:"log_dir"`
-	CacheTTL   time.Duration `mapstructure:"cache_ttl"` // 直链缓存 TTL（复用原有配置名）
-	mutex      sync.RWMutex
+	ListenAddr   string        `mapstructure:"listen"`
+	TargetAddr   string        `mapstructure:"target"`
+	LogLevel     string        `mapstructure:"log_level"`
+	LogDir       string        `mapstructure:"log_dir"`
+	CacheTTL     time.Duration `mapstructure:"cache_ttl"`    // 直链缓存 TTL（复用原有配置名）
+	PathMappings []PathMapping `mapstructure:"path_mappings"` // 路径替换规则
+	mutex        sync.RWMutex
 }
 
 // Global 全局配置实例
@@ -174,4 +182,22 @@ func (c *Config) SetLogLevel(level string) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	c.LogLevel = level
+}
+
+// ApplyPathMappings 按规则替换路径前缀，支持 ~ 展开
+func (c *Config) ApplyPathMappings(path string) string {
+	c.mutex.RLock()
+	defer c.mutex.RUnlock()
+	for _, m := range c.PathMappings {
+		if strings.HasPrefix(path, m.From) {
+			to := m.To
+			if strings.HasPrefix(to, "~/") {
+				if home, err := os.UserHomeDir(); err == nil {
+					to = filepath.Join(home, to[2:])
+				}
+			}
+			return to + path[len(m.From):]
+		}
+	}
+	return path
 }

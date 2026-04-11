@@ -3,3 +3,9 @@ target: "http://127.0.0.1:8005"
 log_level: "info"
 log_dir: "./logs"
 cache_ttl: 60  # 缓存过期时间（分钟），默认1小时
+
+path_mappings:
+   - from: "strm"
+     to: "local"
+   - from: "strm2"
+     to: "local2"

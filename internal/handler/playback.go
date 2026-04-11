@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"encoding/json"
 	"fntv-proxy/internal/cache"
+	"fntv-proxy/internal/config"
 	"fntv-proxy/internal/logger"
 	"io"
 	"net/http"
@@ -78,11 +79,19 @@ func (h *PlaybackHandler) Handle(resp *http.Response, body []byte) ([]byte, erro
 }
 
 // ReadStrmFile 读取.strm文件
-func ReadStrmFile(path string) (string, error) {
+func ReadStrmFile(path string, l *logger.Logger) (string, error) {
 	// 统一路径分隔符
 	cleanPath := strings.ReplaceAll(path, "\\", "/")
 
-	content, err := os.ReadFile(cleanPath)
+	// 应用路径替换规则
+	mapped := config.Global.ApplyPathMappings(cleanPath)
+	if mapped != cleanPath {
+		l.Trace("🗺️ 路径替换: [%s] -> [%s]", cleanPath, mapped)
+	} else {
+		l.Trace("🗺️ 路径无需替换: [%s]", cleanPath)
+	}
+
+	content, err := os.ReadFile(mapped)
 	if err != nil {
 		return "", err
 	}
