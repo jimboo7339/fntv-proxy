@@ -25,6 +25,7 @@ type Config struct {
 	LogDir       string        `mapstructure:"log_dir"`
 	CacheTTL     time.Duration `mapstructure:"cache_ttl"`    // 直链缓存 TTL（复用原有配置名）
 	PathMappings []PathMapping `mapstructure:"path_mappings"` // 路径替换规则
+	ResolveURL   bool          `mapstructure:"resolve_url"`   // 是否发请求获取最终地址，默认 true
 	mutex        sync.RWMutex
 }
 
@@ -56,6 +57,7 @@ func Load(configPath string) error {
 	viper.SetDefault("log_level", "info")
 	viper.SetDefault("log_dir", "./logs")
 	viper.SetDefault("cache_ttl", 60)
+	viper.SetDefault("resolve_url", true)
 
 	// 环境变量覆盖
 	viper.SetEnvPrefix("FNTV")
@@ -182,6 +184,13 @@ func (c *Config) SetLogLevel(level string) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	c.LogLevel = level
+}
+
+// GetResolveURL 获取是否发请求获取最终地址
+func (c *Config) GetResolveURL() bool {
+	c.mutex.RLock()
+	defer c.mutex.RUnlock()
+	return c.ResolveURL
 }
 
 // ApplyPathMappings 按规则替换路径前缀，支持 ~ 展开

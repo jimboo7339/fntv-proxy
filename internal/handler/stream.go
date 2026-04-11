@@ -2,6 +2,7 @@ package handler
 
 import (
 	"fntv-proxy/internal/cache"
+	"fntv-proxy/internal/config"
 	"fntv-proxy/internal/logger"
 	"net/http"
 	"strings"
@@ -104,6 +105,11 @@ func (h *StreamHandler) writeStreamResponse(w http.ResponseWriter, url string, i
 // resolveURL 请求URL，跟随重定向，返回最终地址
 // 透传原始请求的UA
 func (h *StreamHandler) resolveURL(urlStr string, originalReq *http.Request) (string, error) {
+	if !config.Global.GetResolveURL() {
+		h.logger.Trace("⏭️ resolve_url=false，跳过获取最终地址")
+		return urlStr, nil
+	}
+
 	req, err := http.NewRequest("GET", urlStr, nil)
 	if err != nil {
 		return "", err

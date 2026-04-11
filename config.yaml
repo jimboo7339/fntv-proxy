@@ -3,6 +3,7 @@ target: "http://127.0.0.1:8005"
 log_level: "info"
 log_dir: "./logs"
 cache_ttl: 60  # 缓存过期时间（分钟），默认1小时
+resolve_url: true  # 是否对 strm URL 发请求获取最终地址，设为 false 直接返回原始 URL
 
 path_mappings:
    - from: "strm"
