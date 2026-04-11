@@ -53,16 +53,17 @@ func (h *StreamHandler) Handle(w http.ResponseWriter, r *http.Request) bool {
 		return false
 	}
 
+	isInfuse := strings.HasPrefix(r.Header.Get("User-Agent"), "Infuse")
+
 	// 尝试从缓存获取直链
 	if streamURL, found := h.cache.GetStreamURL(source.ID); found {
 		h.logger.Info("✅ 从缓存获取直链: %s", streamURL.URL)
-		w.Header().Set("Location", streamURL.URL)
-		w.WriteHeader(http.StatusFound)
+		h.writeStreamResponse(w, streamURL.URL, isInfuse)
 		return true
 	}
 
 	// 读取.strm文件
-	strmURL, err := ReadStrmFile(source.Path)
+	strmURL, err := ReadStrmFile(source.Path, h.logger)
 	if err != nil {
 		h.logger.Error("❌ 读取.strm失败: %v", err)
 		return false
@@ -83,10 +84,21 @@ func (h *StreamHandler) Handle(w http.ResponseWriter, r *http.Request) bool {
 	h.cache.SetStreamURL(source.ID, finalURL)
 	h.logger.Info("💾 已缓存直链到 MediaSourceId: %s", source.ID)
 
-	// 返回302重定向到最终地址
-	w.Header().Set("Location", finalURL)
-	w.WriteHeader(http.StatusFound)
+	h.writeStreamResponse(w, finalURL, isInfuse)
 	return true
+}
+
+// writeStreamResponse 响应流地址：Infuse 返回纯文本 URL，其他客户端返回 302
+func (h *StreamHandler) writeStreamResponse(w http.ResponseWriter, url string, isInfuse bool) {
+	if isInfuse {
+		h.logger.Info("🍐 Infuse UA，返回纯文本 URL")
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(url))
+	} else {
+		w.Header().Set("Location", url)
+		w.WriteHeader(http.StatusFound)
+	}
 }
 
 // resolveURL 请求URL，跟随重定向，返回最终地址
@@ -169,6 +181,6 @@ func extractItemID(path string) string {
 // isStreamRequest 检查是否是视频流请求
 func isStreamRequest(r *http.Request) bool {
 	path := strings.ToLower(r.URL.Path)
-	return strings.Contains(path, "/stream.") ||
+	return strings.Contains(path, "/stream") ||
 		strings.Contains(path, "/master.m3u8")
 }
