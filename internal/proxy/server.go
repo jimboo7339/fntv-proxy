@@ -134,12 +134,7 @@ func (s *Server) logResponseBody(resp *http.Response, body []byte) {
 			s.logger.Trace("  %s: %s", name, v)
 		}
 	}
-	// 限制Body大小，避免日志过大
-	bodyStr := string(body)
-	if len(bodyStr) > 10000 {
-		bodyStr = bodyStr[:10000] + "... (truncated)"
-	}
-	s.logger.Trace("Body: %s", bodyStr)
+	s.logger.Trace("Body: %s", truncate(string(body), 10000))
 	s.logger.Trace("=====================")
 }
 
@@ -155,6 +150,13 @@ func (s *Server) isPlaybackInfoRequest(req *http.Request) bool {
 
 func contains(s, substr string) bool {
 	return strings.Contains(s, substr)
+}
+
+func truncate(s string, max int) string {
+	if len(s) > max {
+		return s[:max] + "... (truncated)"
+	}
+	return s
 }
 
 // loggingMiddleware 日志中间件
@@ -202,12 +204,7 @@ func (s *Server) logRequest(r *http.Request) []byte {
 		}
 	}
 	if len(body) > 0 {
-		// 限制Body大小
-		bodyStr := string(body)
-		if len(bodyStr) > 10000 {
-			bodyStr = bodyStr[:10000] + "... (truncated)"
-		}
-		s.logger.Trace("Body: %s", bodyStr)
+		s.logger.Trace("Body: %s", truncate(string(body), 10000))
 	}
 	s.logger.Trace("===============")
 
