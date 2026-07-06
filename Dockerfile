@@ -25,11 +25,11 @@ RUN cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
 # 复制二进制文件
 COPY --from=builder /app/fntv-proxy /app/fntv-proxy
 
-# 复制默认配置文件
-COPY --from=builder /app/config.yaml /app/config.yaml
+# 复制默认配置文件（仓库内为 config.yaml.example）
+COPY --from=builder /app/config.yaml.example /app/config.yaml
 
-# 暴露端口
-EXPOSE 28005
+# 暴露端口（飞牛 28005，Emby 8095）
+EXPOSE 28005 8095
 
 # 运行
 ENTRYPOINT ["/app/fntv-proxy"]
