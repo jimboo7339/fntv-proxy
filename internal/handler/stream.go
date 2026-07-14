@@ -110,8 +110,11 @@ if err != nil { return cache.MediaSource{}, false }
 defer resp.Body.Close()
 body, _ := io.ReadAll(resp.Body)
 var result struct {
-ItemID string json:"ItemId"
-MediaSources []struct { ID string json:"Id"; Path string json:"Path" } json:"MediaSources"
+	ItemID       string `json:"ItemId"`
+	MediaSources []struct {
+		ID   string `json:"Id"`
+		Path string `json:"Path"`
+	} `json:"MediaSources"`
 }
 json.Unmarshal(body, &result)
 for _, ms := range result.MediaSources {
